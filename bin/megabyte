@@ -1,0 +1,29 @@
+#!/usr/bin/env bash
+# megabyte launcher: runs the pi engine with megabyte's own agent directory,
+# seeding its config/extensions on first run. Does not modify pi internals.
+set -euo pipefail
+
+# Resolve this script's real path (following symlinks), portably.
+SOURCE="${BASH_SOURCE[0]}"
+while [ -h "$SOURCE" ]; do
+  DIR="$(cd -P "$(dirname "$SOURCE")" && pwd)"
+  SOURCE="$(readlink "$SOURCE")"
+  [[ "$SOURCE" != /* ]] && SOURCE="$DIR/$SOURCE"
+done
+BIN_DIR="$(cd -P "$(dirname "$SOURCE")" && pwd)"
+REPO_DIR="$(cd "$BIN_DIR/.." && pwd)"
+
+AGENT_DIR="${PI_CODING_AGENT_DIR:-$HOME/.megabyte/agent}"
+TEMPLATE="$REPO_DIR/megabyte/agent"
+
+# Seed megabyte config + extensions the first time.
+if [ ! -f "$AGENT_DIR/.seeded" ]; then
+  mkdir -p "$AGENT_DIR/extensions"
+  cp -n "$TEMPLATE/models.json" "$AGENT_DIR/" 2>/dev/null || true
+  cp -n "$TEMPLATE/APPEND_SYSTEM.md" "$AGENT_DIR/" 2>/dev/null || true
+  cp -Rn "$TEMPLATE/extensions/." "$AGENT_DIR/extensions/" 2>/dev/null || true
+  touch "$AGENT_DIR/.seeded"
+fi
+
+export PI_CODING_AGENT_DIR="$AGENT_DIR"
+exec node "$REPO_DIR/packages/coding-agent/dist/bundle/cli.js" "$@"
